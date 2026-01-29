@@ -88,6 +88,14 @@ def simulate_db_save(data: Dict[str, Any]) -> bool:
 
 
 def build_bq_row(enriched: Dict[str, Any]) -> Dict[str, Any]:
+
+    order_date_raw = enriched["order_date"]
+
+    # Convert timestamp → date
+    if "T" in order_date_raw:
+        order_date = order_date_raw.split("T")[0]
+    else:
+        order_date = order_date_raw
     return {
         "order_id": enriched["order_id"],
         "customer_id": enriched["customer_id"],
