@@ -15,9 +15,9 @@ if not logger.handlers:
     ))
     logger.addHandler(h)
 
-BQ_PROJECT = os.environ["gcp-pde-485413"]
-BQ_DATASET = os.environ["PDE_Main_Dataset_Ah_01"]
-BQ_TABLE = os.environ["SalesData_CloudRun_CICD"]
+BQ_PROJECT = os.environ["BQ_PROJECT"]
+BQ_DATASET = os.environ["BQ_DATASET"]
+BQ_TABLE = os.environ["BQ_TABLE"]
 
 
 @functions_framework.http
