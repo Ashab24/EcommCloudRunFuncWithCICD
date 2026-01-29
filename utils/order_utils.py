@@ -89,13 +89,18 @@ def simulate_db_save(data: Dict[str, Any]) -> bool:
 
 def build_bq_row(enriched: Dict[str, Any]) -> Dict[str, Any]:
 
-    order_date_raw = enriched["order_date"]
+    raw_order_date = enriched["order_date"]
 
-    # Convert timestamp → date
-    if "T" in order_date_raw:
-        order_date = order_date_raw.split("T")[0]
-    else:
-        order_date = order_date_raw
+    # Normalize order_date to YYYY-MM-DD
+    try:
+        if "T" in raw_order_date:
+            order_date = datetime.fromisoformat(
+                raw_order_date.replace("Z", "")
+            ).date().isoformat()
+        else:
+            order_date = raw_order_date
+    except Exception:
+        raise ValueError(f"Invalid order_date format: {raw_order_date}")
     return {
         "order_id": enriched["order_id"],
         "customer_id": enriched["customer_id"],
