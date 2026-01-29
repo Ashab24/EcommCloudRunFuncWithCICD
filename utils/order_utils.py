@@ -2,6 +2,8 @@ import logging
 import uuid
 from datetime import datetime
 from typing import Dict, Any, List
+from google.cloud import bigquery
+bq_client = bigquery.Client()
 
 logger = logging.getLogger('order_utils')
 
