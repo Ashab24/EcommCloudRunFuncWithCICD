@@ -15,6 +15,10 @@ if not logger.handlers:
     ))
     logger.addHandler(h)
 
+BQ_PROJECT = os.environ["gcp-pde-485413"]
+BQ_DATASET = os.environ["PDE_Main_Dataset_Ah_01"]
+BQ_TABLE = os.environ["SalesData_CloudRun_CICD"]
+
 
 @functions_framework.http
 def order_event(request):
@@ -65,3 +69,23 @@ def order_event(request):
     }
     logger.info("Order %s processed successfully", enriched["order_id"])
     return make_response(jsonify(resp), 200)
+
+
+    try:
+        row = build_bq_row(enriched)
+        insert_into_bigquery(row, BQ_PROJECT, BQ_DATASET, BQ_TABLE)
+    except Exception as e:
+        logger.exception("BigQuery insert failed: %s", e)
+        return make_response(jsonify({"error": "BigQuery insert failed"}), 500)
+
+    # 4️ Response
+    return make_response(
+        jsonify({
+            "status": "processed",
+            "order_id": enriched["order_id"],
+            "processing_id": enriched["processing_id"],
+            "processed_at": enriched["processed_at"],
+            "message": "Order received and stored"
+        }),
+        200
+    )

@@ -82,3 +82,33 @@ def simulate_db_save(data: Dict[str, Any]) -> bool:
     logger.info("Simulating DB save for order %s", data["order_id"])
     # …imagine inserting into Cloud SQL or Firestore…
     return True
+
+
+
+def build_bq_row(enriched: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "order_id": enriched["order_id"],
+        "customer_id": enriched["customer_id"],
+        "order_date": enriched["order_date"],
+        "payment_method": enriched["payment_method"],
+        "total_amount": enriched["total_amount"],
+        "items": enriched["items"],
+        "shipping_address": enriched["shipping_address"],
+        "processing_id": enriched["processing_id"],
+        "processed_at": enriched["processed_at"]
+    }
+
+
+def insert_into_bigquery(
+    row: Dict[str, Any],
+    project: str,
+    dataset: str,
+    table: str
+) -> None:
+    table_id = f"{project}.{dataset}.{table}"
+    errors = bq_client.insert_rows_json(table_id, [row])
+
+    if errors:
+        raise RuntimeError(f"BigQuery insert errors: {errors}")
+
+    logger.info("Inserted order %s into BigQuery", row["order_id"])
