@@ -3,7 +3,7 @@ import os
 import functions_framework
 from flask import jsonify, make_response, request
 
-from utils.order_utils import validate_payload, enrich_payload, simulate_db_save
+from utils.order_utils import validate_payload, enrich_payload, simulate_db_save, build_bq_row, insert_into_bigquery
 
 # ——— Logger setup ———
 logger = logging.getLogger('order_service')
@@ -15,9 +15,9 @@ if not logger.handlers:
     ))
     logger.addHandler(h)
 
-BQ_PROJECT = os.environ["gcp-pde-485413"]
-BQ_DATASET = os.environ["PDE_Main_Dataset_Ah_01"]
-BQ_TABLE = os.environ["SalesData_CloudRun_CICD"]
+BQ_PROJECT = os.environ["BQ_PROJECT"]
+BQ_DATASET = os.environ["BQ_DATASET"]
+BQ_TABLE = os.environ["BQ_TABLE"]
 
 
 @functions_framework.http
@@ -47,30 +47,9 @@ def order_event(request):
     # 2) Enrich
     enriched = enrich_payload(data)
 
-    # 3) “Save” (fake)
-    try:
-        if not simulate_db_save(enriched):
-            raise RuntimeError("DB save returned False")
-    except Exception:
-        logger.exception("Error saving to DB")
-        return make_response(jsonify({"error": "Internal error"}), 500)
+    
 
-    # 4) Build response
-    resp = {
-        "status":           "processed",
-        "order_id":         enriched["order_id"],
-        "processing_id":    enriched["processing_id"],
-        "processed_at":     enriched["processed_at"],
-        "items_count":      len(enriched["items"]),
-        "total_amount":     enriched["total_amount"],
-        "payment_method":   enriched["payment_method"],
-        "shipping_address": enriched["shipping_address"],
-        "message":          "Order received and stored."
-    }
-    logger.info("Order %s processed successfully", enriched["order_id"])
-    return make_response(jsonify(resp), 200)
-
-
+    # 3) Insert into BigQuery
     try:
         row = build_bq_row(enriched)
         insert_into_bigquery(row, BQ_PROJECT, BQ_DATASET, BQ_TABLE)
@@ -78,14 +57,18 @@ def order_event(request):
         logger.exception("BigQuery insert failed: %s", e)
         return make_response(jsonify({"error": "BigQuery insert failed"}), 500)
 
-    # 4️ Response
-    return make_response(
-        jsonify({
-            "status": "processed",
-            "order_id": enriched["order_id"],
-            "processing_id": enriched["processing_id"],
-            "processed_at": enriched["processed_at"],
-            "message": "Order received and stored"
-        }),
-        200
-    )
+    # 4) Respond
+    resp = {
+    "status": "processed",
+    "order_id": enriched["order_id"],
+    "processing_id": enriched["processing_id"],
+    "processed_at": enriched["processed_at"],
+    "items_count": len(enriched["items"]),
+    "total_amount": enriched["total_amount"],
+    "payment_method": enriched["payment_method"],
+    "shipping_address": enriched["shipping_address"],
+    "message": "Order received and stored."
+    }
+
+    logger.info("Order %s processed successfully", enriched["order_id"])
+    return make_response(jsonify(resp), 200)
