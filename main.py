@@ -52,6 +52,13 @@ def order_event(request):
     # 3) Insert into BigQuery
     try:
         row = build_bq_row(enriched)
+        logger.info(
+        "BQ row order_date=%s (type=%s)",
+        row["order_date"],
+        type(row["order_date"])
+        )
+
+
         insert_into_bigquery(row, BQ_PROJECT, BQ_DATASET, BQ_TABLE)
     except Exception as e:
         logger.exception("BigQuery insert failed: %s", e)
